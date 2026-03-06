@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国地图 - 省份展示</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        #map-container {
+            width: 100%;
+            height: 600px;
+        }
+        .info {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>中国地图 - 省份展示</h1>
+        <div id="map-container"></div>
+        <div class="info">
+            <p>鼠标悬停在省份上可查看省份名称</p>
+        </div>
+    </div>
+
+    <script>
+        // 初始化ECharts实例
+        const mapChart = echarts.init(document.getElementById('map-container'));
+
+        // 地图配置项
+        const option = {
+            title: {
+                text: '中国行政区划图',
+                left: 'center',
+                textStyle: {
+                    fontSize: 18,
+                    fontWeight: 'normal'
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: '{b}'
+            },
+            visualMap: {
+                show: false,
+                min: 0,
+                max: 1000,
+                left: 'left',
+                top: 'bottom',
+                text: ['高', '低'],
+                calculable: true,
+                inRange: {
+                    color: ['#e0f2f1', '#26a69a']
+                }
+            },
+            series: [{
+                name: '省份',
+                type: 'map',
+                map: 'china',
+                roam: true,
+                scaleLimit: {
+                    min: 0.8,
+                    max: 3
+                },
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 13,
+                        fontWeight: 'bold',
+                        color: '#333',
+                        position: 'center',
+                        textStyle: {
+                            shadowBlur: 2,
+                            shadowColor: 'rgba(0, 0, 0, 0.2)',
+                            fontFamily: 'Arial, sans-serif'
+                        }
+                    },
+                    itemStyle: {
+                        areaColor: '#ff9800'
+                    }
+                },
+                data: []
+            }]
+        };
+
+        // 注册地图
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(response => response.json())
+            .then(geoJson => {
+                echarts.registerMap('china', geoJson);
+                // 设置配置项
+                mapChart.setOption(option);
+            })
+            .catch(error => {
+                console.error('地图数据加载失败:', error);
+                // 使用ECharts内置的中国地图
+                mapChart.setOption(option);
+            });
+
+        // 响应式处理
+        window.addEventListener('resize', function() {
+            mapChart.resize();
+        });
+    </script>
+</body>
+</html>
