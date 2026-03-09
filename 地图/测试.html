@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>测试地图</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; }
+        .test-item { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>地图测试</h1>
+    
+    <div class="test-item">
+        <h3>1. 检查 ECharts 加载</h3>
+        <div id="echarts-test">加载中...</div>
+    </div>
+    
+    <div class="test-item">
+        <h3>2. 检查地图数据加载</h3>
+        <div id="map-data-test">加载中...</div>
+    </div>
+    
+    <div class="test-item">
+        <h3>3. 检查图片文件</h3>
+        <div id="image-test">
+            <p>内蒙古: <img src="素材/省/内蒙古.jpg" width="100" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23f0f0f0%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2250%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%20font-size%3D%2212%22%3E加载失败%3C%2Ftext%3E%3C%2Fsvg%3E'"/></p>
+            <p>北京: <img src="素材/省/北京.jpg" width="100" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23f0f0f0%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2250%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%20font-size%3D%2212%22%3E加载失败%3C%2Ftext%3E%3C%2Fsvg%3E'"/></p>
+            <p>四川: <img src="素材/省/四川.jpg" width="100" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22100%22%20height%3D%22100%22%20viewBox%3D%220%200%20100%20100%22%20fill%3D%22none%22%3E%3Crect%20width%3D%22100%22%20height%3D%22100%22%20fill%3D%22%23f0f0f0%22%2F%3E%3Ctext%20x%3D%2250%22%20y%3D%2250%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20fill%3D%22%23999%22%20font-size%3D%2212%22%3E加载失败%3C%2Ftext%3E%3C%2Fsvg%3E'"/></p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        // 测试 ECharts 加载
+        document.getElementById('echarts-test').innerHTML = typeof echarts === 'object' ? '<span class="success">ECharts 加载成功</span>' : '<span class="error">ECharts 加载失败</span>';
+        
+        // 测试地图数据加载
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(function(response) {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('网络错误');
+            })
+            .then(function(data) {
+                document.getElementById('map-data-test').innerHTML = '<span class="success">地图数据加载成功</span>';
+            })
+            .catch(function(error) {
+                document.getElementById('map-data-test').innerHTML = '<span class="error">地图数据加载失败: ' + error.message + '</span>';
+            });
+    </script>
+</body>
+</html>

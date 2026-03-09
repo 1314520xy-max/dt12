@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>测试地图</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #map { width: 800px; height: 500px; border: 1px solid #ccc; }
+        #log { background: #f5f5f5; padding: 10px; margin: 10px 0; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>地图测试</h1>
+    <div id="log">加载中...</div>
+    <div id="map"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        function log(msg) {
+            var logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '<br>';
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(msg);
+        }
+        
+        try {
+            log('开始测试...');
+            
+            if (typeof echarts === 'undefined') {
+                log('ECharts 未加载');
+            } else {
+                log('ECharts 已加载');
+                
+                var chart = echarts.init(document.getElementById('map'));
+                log('图表初始化成功');
+                
+                // 测试简单的图表
+                var option = {
+                    title: {
+                        text: '测试图表'
+                    },
+                    tooltip: {},
+                    series: [{
+                        name: '测试',
+                        type: 'bar',
+                        data: [10, 20, 30]
+                    }]
+                };
+                
+                chart.setOption(option);
+                log('测试图表设置成功');
+                
+                // 尝试加载地图
+                log('开始加载地图数据...');
+                
+                fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+                    .then(function(res) {
+                        log('地图数据响应: ' + res.status);
+                        return res.json();
+                    })
+                    .then(function(data) {
+                        log('地图数据解析成功');
+                        log('特征数量: ' + data.features.length);
+                        
+                        echarts.registerMap('china', data);
+                        log('地图注册成功');
+                        
+                        // 显示中国地图
+                        var mapOption = {
+                            title: {
+                                text: '中国地图'
+                            },
+                            series: [{
+                                name: '中国',
+                                type: 'map',
+                                map: 'china',
+                                data: [
+                                    {name: '北京', value: 100},
+                                    {name: '内蒙古', value: 100}
+                                ]
+                            }]
+                        };
+                        
+                        chart.setOption(mapOption);
+                        log('地图显示成功');
+                    })
+                    .catch(function(err) {
+                        log('地图加载失败: ' + err.message);
+                    });
+            }
+        } catch (e) {
+            log('错误: ' + e.message);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国地图</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        #map-container {
+            width: 100%;
+            height: 600px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .info {
+            text-align: center;
+            margin: 20px 0;
+            color: #333;
+        }
+        .province-list {
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.4s ease;
+        }
+        #modal.show {
+            background: rgba(0,0,0,0.9);
+        }
+        #modal .img-wrapper {
+            position: relative;
+            transform: scale(0.7);
+            opacity: 0;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+        #modal.show .img-wrapper {
+            transform: scale(1);
+            opacity: 1;
+        }
+        #modal img {
+            max-width: 90%;
+            max-height: 80vh;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            cursor: zoom-in;
+            transition: transform 0.3s ease;
+        }
+        #modal img.zoomed {
+            transform: scale(1.5);
+            cursor: zoom-out;
+        }
+        #modal .close {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            color: white;
+            font-size: 50px;
+            cursor: pointer;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            opacity: 0;
+            transform: scale(0);
+            transition: opacity 0.3s ease 0.2s, transform 0.3s ease 0.2s, background 0.3s ease;
+        }
+        #modal.show .close {
+            opacity: 1;
+            transform: scale(1);
+        }
+        #modal .close:hover {
+            background: rgba(255,255,255,0.4);
+        }
+        #modal .title {
+            position: absolute;
+            bottom: 30px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease 0.3s, transform 0.3s ease 0.3s;
+        }
+        #modal.show .title {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #modal .hint {
+            position: absolute;
+            bottom: 70px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease 0.4s;
+        }
+        #modal.show .hint {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="map-container"></div>
+    
+    <div class="info">
+        <p>双击黄色高亮的省份查看图片</p>
+        <p class="province-list">内蒙古、北京、四川、广东、江苏、河南、湖南、贵州、陕西</p>
+    </div>
+
+    <div id="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <div class="img-wrapper">
+            <img id="modal-img" src="" alt="" onclick="toggleZoom(event)">
+        </div>
+        <div class="title" id="modal-title"></div>
+        <div class="hint">点击图片可放大</div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script>
+        var provinceMap = {
+            '内蒙古自治区': '内蒙古',
+            '北京市': '北京',
+            '四川省': '四川',
+            '广东省': '广东',
+            '江苏省': '江苏',
+            '河南省': '河南',
+            '湖南省': '湖南',
+            '贵州省': '贵州',
+            '陕西省': '陕西'
+        };
+        
+        var provinces = ['内蒙古', '北京', '四川', '广东', '江苏', '河南', '湖南', '贵州', '陕西'];
+        
+        var images = {
+            '内蒙古': '素材/省/内蒙古.jpg',
+            '北京': '素材/省/北京.jpg',
+            '四川': '素材/省/四川.jpg',
+            '广东': '素材/省/广东.jpg',
+            '江苏': '素材/省/江苏.JPG',
+            '河南': '素材/省/河南.jpg',
+            '湖南': '素材/省/湖南.jpg',
+            '贵州': '素材/省/贵州.jpg',
+            '陕西': '素材/省/陕西.jpg'
+        };
+        
+        var myChart = echarts.init(document.getElementById('map-container'));
+        
+        fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+            .then(function(res) { return res.json(); })
+            .then(function(chinaJson) {
+                echarts.registerMap('china', chinaJson);
+                
+                var dataArr = [];
+                for (var fullName in provinceMap) {
+                    dataArr.push({
+                        name: fullName,
+                        value: 100,
+                        itemStyle: {
+                            areaColor: '#ffeb3b',
+                            borderColor: '#fff',
+                            borderWidth: 0,
+                            shadowColor: 'rgba(255, 193, 7, 0.8)',
+                            shadowBlur: 20,
+                            shadowOffsetX: 0,
+                            shadowOffsetY: 0
+                        },
+                        label: {
+                            show: true,
+                            color: '#d81b60',
+                            fontWeight: 'bold',
+                            fontSize: 12
+                        }
+                    });
+                }
+                
+                var option = {
+                    backgroundColor: '#f5f5f5',
+                    title: {
+                        text: '中国行政区划图',
+                        left: 'center',
+                        top: 20,
+                        textStyle: {
+                            fontSize: 24,
+                            fontWeight: 'bold'
+                        }
+                    },
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function(p) {
+                            var shortName = provinceMap[p.name] || p.name;
+                            if (provinces.indexOf(shortName) !== -1) {
+                                return shortName + ' - 双击查看图片';
+                            }
+                            return p.name;
+                        }
+                    },
+                    series: [{
+                        name: '中国',
+                        type: 'map',
+                        map: 'china',
+                        roam: true,
+                        data: dataArr,
+                        label: {
+                            show: true,
+                            fontSize: 10
+                        },
+                        itemStyle: {
+                            areaColor: '#e0e0e0',
+                            borderColor: '#fff',
+                            borderWidth: 1
+                        },
+                        emphasis: {
+                            itemStyle: {
+                                areaColor: '#2196f3'
+                            },
+                            label: {
+                                show: true
+                            }
+                        }
+                    }]
+                };
+                
+                myChart.setOption(option);
+                
+                myChart.on('dblclick', function(params) {
+                    var shortName = provinceMap[params.name];
+                    if (shortName && provinces.indexOf(shortName) !== -1) {
+                        showModal(shortName);
+                    }
+                });
+            })
+            .catch(function(err) {
+                console.error('错误:', err);
+            });
+        
+        function showModal(name) {
+            var modal = document.getElementById('modal');
+            var img = document.getElementById('modal-img');
+            var title = document.getElementById('modal-title');
+            
+            img.classList.remove('zoomed');
+            img.src = images[name];
+            title.textContent = name;
+            modal.style.display = 'flex';
+            
+            setTimeout(function() {
+                modal.classList.add('show');
+            }, 10);
+        }
+        
+        function closeModal() {
+            var modal = document.getElementById('modal');
+            var img = document.getElementById('modal-img');
+            
+            modal.classList.remove('show');
+            img.classList.remove('zoomed');
+            
+            setTimeout(function() {
+                modal.style.display = 'none';
+            }, 400);
+        }
+        
+        function toggleZoom(e) {
+            e.stopPropagation();
+            var img = document.getElementById('modal-img');
+            img.classList.toggle('zoomed');
+        }
+        
+        document.getElementById('modal').onclick = function(e) {
+            if (e.target === this || e.target.classList.contains('img-wrapper')) {
+                closeModal();
+            }
+        };
+        
+        window.onresize = function() {
+            if (myChart) myChart.resize();
+        };
+    </script>
+</body>
+</html>
