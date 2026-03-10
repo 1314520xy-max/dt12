@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>非遗之路 - 中国交互式地图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="mapData.js"></script>
+    <style>
+        :root {
+            --primary-color: #c9a962;
+            --primary-dark: #8b7355;
+            --bg-dark: #0f0f0f;
+            --bg-card: #1a1a1a;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a0a0a0;
+            --accent-red: #8b0000;
+            --border-color: #333;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+            background: var(--bg-dark);
+            min-height: 100vh;
+            color: var(--text-primary);
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at 20% 20%, rgba(201, 169, 98, 0.08) 0%, transparent 50%),
+                        radial-gradient(ellipse at 80% 80%, rgba(139, 0, 0, 0.06) 0%, transparent 50%),
+                        linear-gradient(180deg, #0a0a0a 0%, #151515 100%);
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            position: relative;
+        }
+        
+        header::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 200px; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+        }
+        
+        .title-wrapper { display: flex; align-items: center; justify-content: center; gap: 20px; margin-bottom: 10px; }
+        
+        .title-icon {
+            width: 50px; height: 50px;
+            fill: var(--primary-color);
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        
+        h1 {
+            font-family: "Microsoft YaHei", serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #f5deb3 50%, var(--primary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 8px;
+        }
+        
+        .subtitle { color: var(--text-secondary); font-size: 1rem; letter-spacing: 4px; margin-top: 10px; }
+        
+        .breadcrumb {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin: 20px auto;
+            max-width: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            transition: all 0.3s ease;
+        }
+        
+        .breadcrumb:hover { border-color: var(--primary-color); box-shadow: 0 0 20px rgba(201, 169, 98, 0.1); }
+        
+        .breadcrumb a { color: var(--primary-color); text-decoration: none; cursor: pointer; font-size: 0.95rem; }
+        .breadcrumb a:hover { color: #f5deb3; text-shadow: 0 0 10px rgba(201, 169, 98, 0.5); }
+        .breadcrumb span { color: var(--text-secondary); }
+        .breadcrumb .current { color: var(--text-primary); font-weight: 500; }
+        
+        .map-section { display: grid; grid-template-columns: 1fr 320px; gap: 20px; margin-top: 20px; }
+        
+        .map-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.4s ease;
+        }
+        
+        .map-container:hover { border-color: rgba(201, 169, 98, 0.3); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4); }
+        
+        .map-container::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-red), var(--primary-color), var(--accent-red));
+        }
+        
+        #map { width: 100%; height: 650px; border-radius: 8px; }
+        
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.4s ease;
+        }
+        
+        .card:hover { border-color: rgba(201, 169, 98, 0.3); transform: translateY(-2px); }
+        
+        .card-title {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .card-title::before {
+            content: '';
+            width: 4px; height: 20px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+        
+        .info-panel { display: none; }
+        .info-panel.active { display: block; animation: slideIn 0.4s ease; }
+        
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .info-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-color); }
+        .info-item:last-child { border-bottom: none; }
+        .info-label { color: var(--text-secondary); font-size: 0.9rem; }
+        .info-value { color: var(--text-primary); font-weight: 500; }
+        
+        .heritage-road { max-height: 400px; overflow-y: auto; }
+        .heritage-road::-webkit-scrollbar { width: 6px; }
+        .heritage-road::-webkit-scrollbar-track { background: var(--bg-dark); border-radius: 3px; }
+        .heritage-road::-webkit-scrollbar-thumb { background: var(--primary-dark); border-radius: 3px; }
+        
+        .city-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px; cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .city-item:hover {
+            background: rgba(201, 169, 98, 0.1);
+            border-color: var(--primary-color);
+            transform: translateX(5px);
+        }
+        
+        .city-number {
+            width: 28px; height: 28px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; font-weight: 700; color: #000; flex-shrink: 0;
+        }
+        
+        .city-info h4 { font-size: 0.95rem; margin-bottom: 4px; color: var(--text-primary); }
+        .city-info p { font-size: 0.8rem; color: var(--text-secondary); }
+        
+        .back-btn {
+            position: fixed; bottom: 30px; right: 30px;
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+            color: #000; border: none;
+            padding: 14px 28px; border-radius: 30px;
+            cursor: pointer; font-size: 14px; font-weight: 600;
+            box-shadow: 0 4px 20px rgba(201, 169, 98, 0.3);
+            display: none; z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(201, 169, 98, 0.5); }
+        .back-btn.visible { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        .loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--bg-dark);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 3000;
+            transition: opacity 0.6s ease;
+        }
+        
+        .loading.hidden { opacity: 0; pointer-events: none; }
+        
+        .loading-spinner {
+            width: 60px; height: 60px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { margin-top: 20px; color: var(--text-secondary); font-size: 1rem; }
+        
+        .legend {
+            position: absolute; bottom: 30px; left: 20px;
+            background: rgba(26, 26, 26, 0.9);
+            padding: 15px; border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+        
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+        .legend-line { width: 24px; height: 2px; background: var(--primary-color); }
+        
+        @media (max-width: 1200px) {
+            .map-section { grid-template-columns: 1fr; }
+            .sidebar { flex-direction: row; flex-wrap: wrap; }
+            .card { flex: 1; min-width: 280px; }
+        }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; letter-spacing: 4px; }
+            #map { height: 450px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">正在加载地图数据...</div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <div class="title-wrapper">
+                <svg class="title-icon" viewBox="0 0 24 24">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                </svg>
+                <h1>非遗之路</h1>
+            </div>
+            <p class="subtitle">中国非物质文化遗产地图</p>
+        </header>
+        
+        <div class="breadcrumb" id="breadcrumb">
+            <a onclick="goHome()">中国</a>
+        </div>
+        
+        <div class="map-section">
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-dot" style="background: #c9a962;"></div>
+                        <span>非遗之路站点</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-line"></div>
+                        <span>非遗之路连线</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar">
+                <div class="card info-panel" id="info-panel">
+                    <h3 class="card-title">地区信息</h3>
+                    <div class="info-item"><span class="info-label">名称</span><span class="info-value" id="info-name">-</span></div>
+                    <div class="info-item"><span class="info-label">行政编码</span><span class="info-value" id="info-adcode">-</span></div>
+                    <div class="info-item"><span class="info-label">中心坐标</span><span class="info-value" id="info-center">-</span></div>
+                    <div class="info-item"><span class="info-label">下级地区</span><span class="info-value" id="info-children">-</span></div>
+                </div>
+                
+                <div class="card heritage-road" id="heritage-card">
+                    <h3 class="card-title">非遗之路站点</h3>
+                    <div id="city-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <button class="back-btn" id="back-btn" onclick="goBack()">← 返回上级</button>
+
+    <script>
+        const heritageCities = [
+            { name: "北京", adcode: 110000, lng: 116.405285, lat: 39.904989, province: "北京市" },
+            { name: "呼和浩特", adcode: 150100, lng: 111.751990, lat: 40.841140, province: "内蒙古自治区" },
+            { name: "西安", adcode: 610100, lng: 108.939770, lat: 34.341600, province: "陕西省" },
+            { name: "开封", adcode: 410200, lng: 114.307500, lat: 34.797010, province: "河南省" },
+            { name: "焦作", adcode: 410800, lng: 113.241930, lat: 35.215890, province: "河南省" },
+            { name: "成都", adcode: 510100, lng: 104.066670, lat: 30.572790, province: "四川省" },
+            { name: "黔东南", adcode: 522600, lng: 107.985330, lat: 26.583990, province: "贵州省" },
+            { name: "昆山", adcode: 320583, lng: 120.958100, lat: 31.384820, province: "江苏省" },
+            { name: "苏州", adcode: 320500, lng: 120.585310, lat: 31.298890, province: "江苏省" },
+            { name: "衡阳", adcode: 430400, lng: 112.571940, lat: 26.893300, province: "湖南省" },
+            { name: "佛山", adcode: 440600, lng: 113.122710, lat: 23.028760, province: "广东省" },
+            { name: "湘西", adcode: 433100, lng: 109.738130, lat: 28.312060, province: "湖南省" }
+        ];
+
+        let chart = null;
+        let provinceStack = [];
+        let mapData = null;
+        let provinceCache = {};
+
+        function initCityList() {
+            const cityList = document.getElementById('city-list');
+            cityList.innerHTML = heritageCities.map((city, index) => `
+                <div class="city-item" onclick="focusCity(${city.adcode}, '${city.name}', ${city.lng}, ${city.lat})">
+                    <div class="city-number">${index + 1}</div>
+                    <div class="city-info">
+                        <h4>${city.name}</h4>
+                        <p>${city.province}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function focusCity(adcode, name, lng, lat) {
+            chart.setOption({ geo: { center: [lng, lat], zoom: 6 } });
+        }
+
+        async function loadMapData() {
+            try {
+                mapData = chinaMapData;
+                initChart();
+                initCityList();
+                setTimeout(() => { document.getElementById('loading').classList.add('hidden'); }, 500);
+            } catch (error) {
+                console.error('加载地图数据失败:', error);
+                document.querySelector('.loading-text').textContent = '加载失败，请刷新页面重试';
+            }
+        }
+
+        async function loadProvince(adcode) {
+            if (provinceCache[adcode]) return provinceCache[adcode];
+            
+            try {
+                const response = await fetch(`https://geo.datav.aliyun.com/areas_v3/bound/${adcode}_full.json`);
+                const data = await response.json();
+                provinceCache[adcode] = data;
+                return data;
+            } catch (error) {
+                console.error('加载省份数据失败:', error);
+                return null;
+            }
+        }
+
+        function initChart() {
+            chart = echarts.init(document.getElementById('map'));
+            echarts.registerMap('china', mapData);
+            
+            const features = mapData.features || [];
+            const data = features.map(f => ({
+                name: f.properties.name,
+                value: f.properties.center || [0, 0],
+                adcode: f.properties.adcode,
+                childrenNum: f.properties.childrenNum
+            }));
+
+            const lineData = heritageCities.map((city, index) => {
+                if (index < heritageCities.length - 1) {
+                    return {
+                        fromName: city.name,
+                        toName: heritageCities[index + 1].name,
+                        coords: [[city.lng, city.lat], [heritageCities[index + 1].lng, heritageCities[index + 1].lat]]
+                    };
+                }
+                return null;
+            }).filter(item => item !== null);
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: {
+                    trigger: 'item',
+                    formatter: function(params) {
+                        if (params.seriesType === 'lines') return `${params.data.fromName} → ${params.data.toName}`;
+                        return `<strong>${params.name}</strong><br/>点击查看详情`;
+                    },
+                    backgroundColor: 'rgba(26, 26, 26, 0.95)',
+                    borderColor: '#c9a962',
+                    borderWidth: 1,
+                    textStyle: { color: '#f5f5f5' }
+                },
+                geo: {
+                    map: 'china',
+                    roam: true,
+                    zoom: 1.2,
+                    center: [105, 36],
+                    label: { show: true, color: '#666', fontSize: 10 },
+                    itemStyle: { areaColor: '#1a1a1a', borderColor: '#333', borderWidth: 1 },
+                    emphasis: {
+                        label: { show: true, fontSize: 12, fontWeight: 'bold', color: '#f5f5f5' },
+                        itemStyle: { areaColor: '#2a2a2a', borderColor: '#c9a962', borderWidth: 2, shadowBlur: 20, shadowColor: 'rgba(201, 169, 98, 0.3)' }
+                    },
+                    select: { itemStyle: { areaColor: '#c9a962' } }
+                },
+                series: [
+                    {
+                        name: '非遗之路站点',
+                        type: 'effectScatter',
+                        coordinateSystem: 'geo',
+                        zlevel: 2,
+                        rippleEffect: { brushType: 'stroke', scale: 3, period: 4 },
+                        label: { show: true, position: 'right', formatter: '{b}', color: '#f5f5f5', fontSize: 11, fontWeight: 500 },
+                        symbol: 'circle',
+                        symbolSize: 14,
+                        itemStyle: { color: '#c9a962', shadowBlur: 10, shadowColor: 'rgba(201, 169, 98, 0.5)' },
+                        data: heritageCities.map(city => ({ name: city.name, value: [city.lng, city.lat, city.adcode] }))
+                    },
+                    {
+                        name: '非遗之路',
+                        type: 'lines',
+                        zlevel: 1,
+                        effect: { show: true, period: 6, trailLength: 0.5, color: '#c9a962', symbolSize: 4 },
+                        lineStyle: { color: '#c9a962', width: 2, opacity: 0.6, curveness: 0.2 },
+                        data: lineData
+                    }
+                ]
+            };
+
+            chart.setOption(option);
+
+            chart.on('click', function(params) {
+                if (params.componentType === 'series' && params.seriesType === 'effectScatter') return;
+                if (params.data && params.data.adcode) handleRegionClick(params.data);
+            });
+        }
+
+        async function handleRegionClick(regionInfo) {
+            const adcode = regionInfo.adcode;
+            const name = regionInfo.name;
+            
+            provinceStack.push({ name: name, adcode: adcode });
+            
+            document.getElementById('info-panel').classList.add('active');
+            updateInfoPanel(regionInfo);
+            updateBreadcrumb();
+            document.getElementById('back-btn').classList.add('visible');
+            
+            const provinceData = await loadProvince(adcode);
+            if (provinceData) showProvinceMap(provinceData, name, adcode);
+        }
+
+        function showProvinceMap(data, provinceName, adcode) {
+            echarts.registerMap(provinceName, data);
+            
+            const features = data.features || [];
+            const mapFeatures = features.filter(f => f.geometry);
+            const dataList = mapFeatures.map(f => ({
+                name: f.properties.name,
+                value: f.properties.centroid || f.properties.center || [0, 0],
+                adcode: f.properties.adcode,
+                childrenNum: f.properties.childrenNum
+            }));
+
+            const cityMarkers = heritageCities.filter(city => {
+                return dataList.some(c => c.name.includes(city.name) || city.name.includes(c.name));
+            }).map(city => {
+                const cityData = dataList.find(c => c.name.includes(city.name) || city.name.includes(c.name));
+                return cityData ? { name: city.name, value: [cityData.value[0], cityData.value[1], city.adcode] } : null;
+            }).filter(item => item !== null);
+
+            const option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'item', formatter: function(params) { return `<strong>${params.name}</strong>`; } },
+                geo: {
+                    map: provinceName,
+                    roam: true,
+                    zoom: 1.0,
+                    label: { show: true, color: '#666', fontSize: 9 },
+                    itemStyle: { areaColor: '#1a1a1a', borderColor: '#333', borderWidth: 0.5 },
+                    emphasis: {
+                        label: { show: true, fontSize: 11, fontWeight: 'bold', color: '#f5f5f5' },
+                        itemStyle: { areaColor: '#2a2a2a', borderColor: '#c9a962', borderWidth: 1.5 }
+                    }
+                },
+                series: [
+                    {
+                        name: '城市',
+                        type: 'effectScatter',
+                        coordinateSystem: 'geo',
+                        zlevel: 2,
+                        rippleEffect: { brushType: 'stroke', scale: 3 },
+                        label: { show: true, position: 'right', formatter: '{b}', color: '#f5f5f5', fontSize: 10 },
+                        symbol: 'circle',
+                        symbolSize: 10,
+                        itemStyle: { color: '#c9a962' },
+                        data: cityMarkers
+                    }
+                ]
+            };
+
+            chart.setOption(option, true);
+        }
+
+        function updateInfoPanel(data) {
+            document.getElementById('info-name').textContent = data.name || '-';
+            document.getElementById('info-adcode').textContent = data.adcode || '-';
+            document.getElementById('info-center').textContent = data.value ? `${data.value[0].toFixed(4)}, ${data.value[1].toFixed(4)}` : '-';
+            document.getElementById('info-children').textContent = data.childrenNum || '-';
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            let html = `<a onclick="goHome()">中国</a>`;
+            for (let i = 0; i < provinceStack.length; i++) {
+                html += `<span> › </span>`;
+                if (i === provinceStack.length - 1) {
+                    html += `<span class="current">${provinceStack[i].name}</span>`;
+                } else {
+                    html += `<span>${provinceStack[i].name}</span>`;
+                }
+            }
+            breadcrumb.innerHTML = html;
+        }
+
+        function goHome() {
+            provinceStack = [];
+            document.getElementById('info-panel').classList.remove('active');
+            document.getElementById('back-btn').classList.remove('visible');
+            updateBreadcrumb();
+            initChart();
+        }
+
+        function goBack() {
+            if (provinceStack.length <= 1) { goHome(); return; }
+            provinceStack.pop();
+            if (provinceStack.length === 0) { goHome(); return; }
+            
+            const current = provinceStack[provinceStack.length - 1];
+            updateBreadcrumb();
+            
+            if (provinceStack.length === 1) {
+                document.getElementById('back-btn').classList.add('visible');
+                loadProvince(current.adcode).then(data => {
+                    if (data) {
+                        showProvinceMap(data, current.name, current.adcode);
+                        updateInfoPanel({ name: current.name, adcode: current.adcode, value: [105, 36], childrenNum: data.features ? data.features.length : 0 });
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('resize', function() { if (chart) chart.resize(); });
+
+        loadMapData();
+    </script>
+</body>
+</html>
