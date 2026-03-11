@@ -207,6 +207,20 @@
         
         .back-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(201, 169, 98, 0.5); }
         .back-btn.visible { display: block; animation: fadeIn 0.4s ease; }
+        
+        .home-btn {
+            position: fixed; bottom: 30px; right: 150px;
+            background: linear-gradient(135deg, #8b0000, #c9a962);
+            color: #fff; border: none;
+            padding: 14px 28px; border-radius: 30px;
+            cursor: pointer; font-size: 14px; font-weight: 600;
+            box-shadow: 0 4px 20px rgba(139, 0, 0, 0.3);
+            display: none; z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .home-btn:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(139, 0, 0, 0.5); }
+        .home-btn.visible { display: block; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
         .loading {
@@ -309,6 +323,7 @@
     </div>
     
     <button class="back-btn" id="back-btn" onclick="goBack()">← 返回上级</button>
+    <button class="home-btn" id="home-btn" onclick="goHome()">🏠 返回全国</button>
 
     <script>
         const heritageCities = [
@@ -450,8 +465,29 @@
             chart.setOption(option);
 
             chart.on('click', function(params) {
+                console.log('点击参数:', params);
+                console.log('点击名称:', params.name);
                 if (params.componentType === 'series' && params.seriesType === 'effectScatter') return;
-                if (params.data && params.data.adcode) handleRegionClick(params.data);
+                
+                const provinceName = params.name;
+                if (provinceName) {
+                    const provinceMap = {
+                        '北京市': '北京.html',
+                        '内蒙古自治区': '内蒙古自治区.html',
+                        '陕西省': '陕西省.html',
+                        '河南省': '河南省.html',
+                        '四川省': '四川省.html',
+                        '贵州省': '贵州省.html',
+                        '江苏省': '江苏省.html',
+                        '湖南省': '湖南省.html',
+                        '广东省': '广东省.html'
+                    };
+                    if (provinceMap[provinceName]) {
+                        window.location.href = '地区/' + provinceMap[provinceName];
+                    } else if (params.data && params.data.adcode) {
+                        handleRegionClick(params.data);
+                    }
+                }
             });
         }
 
@@ -465,6 +501,7 @@
             updateInfoPanel(regionInfo);
             updateBreadcrumb();
             document.getElementById('back-btn').classList.add('visible');
+            document.getElementById('home-btn').classList.add('visible');
             
             const provinceData = await loadProvince(adcode);
             if (provinceData) showProvinceMap(provinceData, name, adcode);
@@ -547,6 +584,7 @@
             provinceStack = [];
             document.getElementById('info-panel').classList.remove('active');
             document.getElementById('back-btn').classList.remove('visible');
+            document.getElementById('home-btn').classList.remove('visible');
             updateBreadcrumb();
             initChart();
         }
